@@ -1,8 +1,6 @@
 {-# LANGUAGE DoRec, RecordWildCards #-}
 {-# OPTIONS_GHC -Wall -fno-warn-orphans #-}
-module DemoMain
-  ( main
-  ) where
+module DemoMain(main) where
 
 import Draw
 import GLUtil

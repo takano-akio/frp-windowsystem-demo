@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
+-- | 2-D drawing combinators wrapping OpenGL functions.
 module Draw
   ( Draw
   , square
@@ -20,6 +21,7 @@ import qualified Data.Foldable as F
 import Data.Monoid
 import Util
 
+-- | Something to be drawn.
 data Draw
   = PrimD (IO ())
   | TransD [Transformation] Draw

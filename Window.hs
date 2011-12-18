@@ -1,5 +1,6 @@
 {-# LANGUAGE DoRec, ExistentialQuantification, RecordWildCards #-}
 {-# OPTIONS_GHC -Wall #-}
+-- | A very simple window system, implemented on top of GLUT.
 module Window where
 
 import Draw
@@ -32,6 +33,7 @@ type WindowOutput = (Signal Draw, WindowMetrics, Discrete WindowMetrics)
 type WindowMetrics = (Position, Size)
 type GlobalInput = (Event KeyEvent, Discrete KeyStateMap, Signal Position)
 
+-- | An abstract type representing an instance of the window system.
 data WindowSystem = WS
   { wsBundleAggr :: AggregatorE WindowBundle
   , wsWindowOut :: Collection WindowKey Dynamic
@@ -48,9 +50,28 @@ instance Ord WindowKey where
     Just k -> compare k k1
     Nothing -> compare u0 u1
 
+-- | Create an instance of the window system.
+windowSystem :: GlobalInput -> SignalGenA (Signal Draw, WindowSystem)
+windowSystem globalInput = do
+  (bundleAdd, bundleAggr) <- aggregateE
+  bundles <- accumB [] ((:) <$> bundleAdd)
+  let delta = joinEventSignal $ mconcat . map bundleChanges <$> bundles
+  windows <- deltaEventToCollection delta
+  (draw, out) <- runWindows windows globalInput
+  let ws = WS{ wsBundleAggr = bundleAggr, wsWindowOut = out }
+  return (draw, ws)
+  where
+    bundleChanges (WindowBundle uniq col) = f <$> collectionChanges col
+      where
+        f (Add k w) = Add (WindowKey uniq k) (mapWindow toDyn w)
+        f (Remove k) = Remove (WindowKey uniq k)
+
+-- | Create a single window. The resulting window is never closed.
 window :: (Typeable a) => WindowSystem -> Window a -> SignalGenA (Signal (Maybe a))
 window sys w = generalWindow sys w mempty
 
+-- | Create a single window. The window should return an event that
+-- describes when to close it.
 closableWindow
   :: (Typeable a)
   => WindowSystem
@@ -75,6 +96,7 @@ generalWindow sys w close = do
   out <- manyWindows sys col
   memo $ M.lookup () <$> collectionToMap out
 
+-- | Create multiple windows sharing an output type.
 manyWindows :: (Typeable k, Ord k, Typeable a) =>
   WindowSystem -> Collection k (Window a) -> SignalGenA (Collection k a)
 manyWindows WS{..} windowCol = do
@@ -91,22 +113,7 @@ manyWindows WS{..} windowCol = do
 trigger :: AggregatorE a -> a -> SignalGenA ()
 trigger aggr val = onCreation val >>= connectE aggr
 
-windowSystem :: GlobalInput -> SignalGenA (Signal Draw, WindowSystem)
-windowSystem globalInput = do
-  (bundleAdd, bundleAggr) <- aggregateE
-  bundles <- accumB [] ((:) <$> bundleAdd)
-  let delta = joinEventSignal $ mconcat . map bundleChanges <$> bundles
-  windows <- deltaEventToCollection delta
-  (draw, out) <- runWindows windows globalInput
-  let ws = WS{ wsBundleAggr = bundleAggr, wsWindowOut = out }
-  return (draw, ws)
-  where
-    bundleChanges (WindowBundle uniq col) = f <$> collectionChanges col
-      where
-        f (Add k w) = Add (WindowKey uniq k) (mapWindow toDyn w)
-        f (Remove k) = Remove (WindowKey uniq k)
-
--- | Low-level interface to the window system. You'll have to put
+-- | The low-level interface to the window system. You'll have to put
 -- all windows together into a single collection to use this interface.
 -- Also all the windows in the system must share an output type @a@.
 runWindows

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall #-}
 -- Dynamically connected signals
 
 module ElereaExts.Aggregate
@@ -13,16 +14,14 @@ import ElereaExts.MonadSignalGen
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Fix
-import Control.Monad.Trans
 import Data.Maybe
 import qualified Data.Vault as V
 
 -- | A variant of @SignalGen@ that supports two additional operations,
 -- @aggregate@ and @connect@.
-newtype SignalGenA a = SG (Bus -> Bus -> SignalGen (Bus, a))
+newtype SignalGenA a = SG { unSG :: Bus -> Bus -> SignalGen (Bus, a) }
 
 type Bus = Signal V.Vault
-unSG (SG x) = x
 
 instance Monad SignalGenA where
   return x = SG $ \_ bus -> return (bus, x)
@@ -42,7 +41,7 @@ instance MonadFix SignalGenA where
     mfix $ \ ~(_, r) -> unSG (f r) env bus
 
 instance MonadSignalGen SignalGenA where
-  liftSignalGen sg = SG $ \env bus -> do
+  liftSignalGen sg = SG $ \_ bus -> do
     r <- sg
     return (bus, r)
   -- The generator signal must not directly depend on any aggregated

@@ -18,16 +18,16 @@ main :: IO ()
 main = do
   _ <- getArgsAndInitialize
   initialDisplayMode $= [RGBAMode, DoubleBuffered]
-  
+
   _ <- createWindow "demo"
   initialWindowSize $= Size 640 480
-  
+
   (update, draw) <- setupNetwork
   displayCallback $= draw
 
   --idleCallback $= Just (postRedisplay Nothing)
   periodically 15 $ update >> draw
-  
+
   mainLoop
 
 setupNetwork :: IO (IO (), IO ())

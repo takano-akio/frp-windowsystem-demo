@@ -5,30 +5,26 @@ module DemoMain
   ) where
 
 import Draw
+import GLUtil
 import Util
 import Window
-import GLUtil
 
 import ElereaExts.Aggregate
-import ElereaExts.Collection
 import ElereaExts.Event
-import ElereaExts.EventAggregate
 import ElereaExts.MonadSignalGen
 
 import Control.Applicative
-import Control.Monad
-import Data.Dynamic
-import Data.UnixTime
 import Data.Maybe
 import Data.Monoid
 import qualified Data.Map as M
-import Graphics.UI.GLUT(GLdouble, Vector2(..), Vector3(..), Color4(..), Position(..))
-import Graphics.UI.GLUT(Key(..), MouseButton(..), SpecialKey(..))
+import Data.UnixTime
+import Graphics.UI.GLUT(GLdouble, Vector2(..), Color4(..))
+import Graphics.UI.GLUT(Key(..), MouseButton(..))
 import qualified Graphics.UI.GLUT as GL
 import Text.Printf
 
 main :: Event KeyEvent -> Signal Position -> SignalGen (Signal (Task IO))
-main keyEvt mousePos = (<*execute (putStrLn "game end")) $ runSignalGenA $ do
+main keyEvt mousePos = runSignalGenA $ do
   curTime <- currentTime
   keyState <- keyStateFromKeyEvent keyEvt
   frameRate <- eventRate $ eachSample curTime
@@ -40,18 +36,6 @@ main keyEvt mousePos = (<*execute (putStrLn "game end")) $ runSignalGenA $ do
 
   let globalInput = (keyEvt, keyState, mousePos)
 
-  list <- liftSignalGen $ runSignalGenA $ do
-    rec
-      connect recv (pure "foo")
-
-      (list, recv) <- aggregate
-
-      connect recv (pure "bar")
-    --bug
-    return list
-
-  listVal <- snapshot list
-  execute $ print listVal
   let
     check = mconcat
       [ segment 1000
@@ -62,29 +46,15 @@ main keyEvt mousePos = (<*execute (putStrLn "game end")) $ runSignalGenA $ do
       , rotate 90 $ shift 0 200 $ segment 1000
       ]
   let objs = centering <$> youLoc <*> (mappend check <$> you)
-  let fps = makeFpsD <$> ((*) <$> (fromIntegral . length <$> list) <*> frameRate)
+  let fps = makeFpsD <$> frameRate
 
-  let extra = mempty
-  --{-
   (windowDraw, sys) <- windowSystem globalInput
-  execute $ putStrLn "game 0"
   _ <- window sys $ fpsWindow frameRate
-  execute $ putStrLn "game 1"
-  ---}
-  {-
-  windowChanges <- onCreation (Add "fps" $ fpsWindow frameRate)
-  windows <- deltaEventToCollection windowChanges
-  (windowDraw, vals) <- runWindows windows globalInput
-  ---}
 
   return $! mconcat
-    [ (drawTask <$> mconcat [objs, fps, windowDraw]) `mappend` extra
+    [ (drawTask <$> mconcat [objs, fps, windowDraw])
     , fmap mconcat $ eventToSignal $ Task . print <$> click
     ]
-
-bug = do
-  (bundleAdd, bundleAggr) <- aggregate
-  liftSignalGen $ generator $ const (return ()) <$> bundleAdd
 
 toWorldCoord :: (GLdouble, GLdouble) -> Position -> Position
 toWorldCoord (centerX, centerY) (Position x y) =
@@ -102,14 +72,14 @@ fpsWindow frameRate WindowInput{..} = do
   return (output draw counter, ())
   where
     output draw counter = (draw, newMetrics 0, newMetrics . (*100) . sin . (/30) <$> counter)
+    newMetrics :: Double -> WindowMetrics
     newMetrics n = (Position (240+round n) (200+ round n), Size 100 100)
 
     bg False = color (Color4 1 0.7 0.4 1) . windowBg
     bg True = color (Color4 1 0.8 0.3 1) . windowBg
 
 windowBg :: WindowMetrics -> Draw
-windowBg (Position x y, Size w h) =
-  --shift (fromIntegral x) (fromIntegral y) $
+windowBg (_, Size w h) =
   scaleXY (fromIntegral w) (fromIntegral h) $
   shift 0.5 0.5 $
   scale 0.5 $
@@ -127,7 +97,7 @@ followObj click = do
   return (drawSig, posSig)
   where
     updState Nothing ms = ms
-    updState (Just (Position tx ty)) (MoveState moving x y)
+    updState (Just (Position tx ty)) (MoveState _ x y)
       | distance < 1e-4 = MoveState False x y
       | otherwise = MoveState True x' y'
       where
@@ -153,10 +123,6 @@ clickEvent = filterNothingE . fmap pickupClick
   where
     pickupClick (MouseButton LeftButton, GL.Down, _, pos) = Just pos
     pickupClick _ = Nothing
-
-makeSquareD :: GLdouble -> Draw
-makeSquareD r = Draw.color (Color4 0 1 0 1) $
-  Draw.shift 300 300 $ Draw.rotate r $ Draw.scale 100 square
 
 --------------------------------------------------------------------------------
 -- framerate calculation
@@ -187,22 +153,12 @@ currentTime = effectful getUnixTime
 centering :: (GLdouble, GLdouble) -> Draw -> Draw
 centering (x, y) = Draw.shift (300-x) (300-y)
 
-moveVecFromKey :: (Key -> Bool) -> Vector2 Double
-moveVecFromKey pressed = normalizeVector $ Vector2 x y
-  where
-    x = k2d KeyUp - k2d KeyDown
-    y = k2d KeyRight - k2d KeyLeft
-    k2d k = if pressed (SpecialKey k) then 1 else 0
-
 keyStateFromKeyEvent :: Event KeyEvent -> SignalGenA (Discrete KeyStateMap)
 keyStateFromKeyEvent keyEvt = do
   m <- accumD M.empty (updMap <$> keyEvt)
   memoD $ flip (M.findWithDefault False) <$> m
   where
     updMap (key, ks, _, _) m = (M.insert key $! ks==GL.Down) m
-
-ifelse :: Bool -> a -> a -> a
-ifelse b x y = if b then x else y
 
 -- | Component-wise arithmetic of 2d vectors
 instance (Num a) => Num (Vector2 a) where
@@ -224,9 +180,6 @@ vectorLen (Vector2 x y) = sqrt (x*x + y*y)
 
 toVec :: a -> Vector2 a
 toVec x = Vector2 x x
-
-vector3 :: GLdouble -> GLdouble -> Vector3 GLdouble
-vector3 x y = Vector3 x y 0
 
 normalizeVector :: (RealFloat a) => Vector2 a -> Vector2 a
 normalizeVector vec

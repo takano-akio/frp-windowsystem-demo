@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall #-}
 -- SignalGen-like monads
 
 module ElereaExts.MonadSignalGen

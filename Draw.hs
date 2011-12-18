@@ -19,9 +19,6 @@ import qualified Graphics.UI.GLUT as GL
 import qualified Data.Foldable as F
 import Data.Monoid
 import Util
-import System.IO.Unsafe
-import Foreign.C.Types
-import Foreign.C.String
 
 data Draw
   = PrimD (IO ())

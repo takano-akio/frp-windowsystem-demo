@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall #-}
 module GLUtil
   ( module GLUtil
   , Position(..)

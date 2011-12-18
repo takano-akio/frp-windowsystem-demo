@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveFunctor, MultiParamTypeClasses #-}
 
+{-# OPTIONS_GHC -Wall #-}
 -- Event/discrete layer constructed on top of Elera.
 -- The API is largely inspired by reactive-banana.
 
@@ -177,7 +178,7 @@ discreteToSignal :: (MonadSignalGen m) => Discrete a -> m (Signal a)
 discreteToSignal (Discrete dis) = fmap fromJust <$> transfer Nothing upd dis
   where
     upd (False, _) (Just cache) = Just cache
-    upd (new, val) _ = Just val
+    upd (_, val) _ = Just val
 
 signalToDiscrete :: Signal a -> Discrete a
 signalToDiscrete x = Discrete $ (,) True <$> x

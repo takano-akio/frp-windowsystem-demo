@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall #-}
 -- Dynamically connected events
 
 module ElereaExts.EventAggregate
@@ -9,7 +10,6 @@ module ElereaExts.EventAggregate
 
 import ElereaExts.Aggregate
 import ElereaExts.Event
-import ElereaExts.MonadSignalGen
 
 newtype AggregatorE a = AE (Aggregator [a])
 

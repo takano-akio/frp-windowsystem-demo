@@ -1,6 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DeriveFunctor #-}
 
+{-# OPTIONS_GHC -Wall #-}
 -- Collection signals
 
 module ElereaExts.Collection
@@ -19,7 +20,6 @@ import Control.Applicative
 import Data.List (foldl')
 import qualified Data.Map as M
 import Data.Maybe
-import Data.Monoid
 import qualified Data.Set as S
 
 import ElereaExts.MonadSignalGen

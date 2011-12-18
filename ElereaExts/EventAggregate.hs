@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
--- Dynamically connected events
-
+-- | Dynamically connected events.
 module ElereaExts.EventAggregate
   ( AggregatorE
   , aggregateE

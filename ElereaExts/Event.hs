@@ -1,9 +1,8 @@
 {-# LANGUAGE DeriveFunctor, MultiParamTypeClasses #-}
 
 {-# OPTIONS_GHC -Wall #-}
--- Event/discrete layer constructed on top of Elera.
+-- | Event/discrete layer constructed on top of Elera.
 -- The API is largely inspired by reactive-banana.
-
 module ElereaExts.Event where
 
 import Control.Applicative
@@ -20,6 +19,9 @@ newtype Discrete a = Discrete (Signal (Bool, a))
   -- The first component indicates if the value may be new.
   -- If it is False, the consumer should avoid evaluating the
   -- second component whenever possible.
+  -- FIXME: This trick alone cannot remove all redundant recomputations.
+  -- Consider the case where a Discrete is
+  -- read every iteration in a fresh SignalGen run.
   deriving (Functor)
 -- type Behavior a = Signal a
 

@@ -1,5 +1,7 @@
 {-# OPTIONS_GHC -Wall #-}
--- Dynamically connected signals
+-- | Dynamically connected signals.
+-- This enables you to (almost) freely mix the imperative method-invocation
+-- style and the functional reactive style.
 
 module ElereaExts.Aggregate
   ( Aggregator

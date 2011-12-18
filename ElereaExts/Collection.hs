@@ -2,8 +2,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 
 {-# OPTIONS_GHC -Wall #-}
--- Collection signals
-
+-- | Collection signals
 module ElereaExts.Collection
   ( Collection
   , CollectionDelta(..)

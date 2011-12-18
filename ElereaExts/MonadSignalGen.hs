@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
--- SignalGen-like monads
-
+-- | Polymorphic operations defined over any SignalGen-like monads.
 module ElereaExts.MonadSignalGen
   ( MonadSignalGen(..)
 

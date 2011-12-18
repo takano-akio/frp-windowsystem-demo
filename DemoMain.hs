@@ -14,6 +14,7 @@ import ElereaExts.Event
 import ElereaExts.MonadSignalGen
 
 import Control.Applicative
+import Control.Monad
 import Data.Maybe
 import Data.Monoid
 import qualified Data.Map as M
@@ -49,7 +50,7 @@ main keyEvt mousePos = runSignalGenA $ do
   let fps = makeFpsD <$> frameRate
 
   (windowDraw, sys) <- windowSystem globalInput
-  _ <- window sys $ fpsWindow frameRate
+  simpleWindow sys $ fpsWindow frameRate
 
   return $! mconcat
     [ (drawTask <$> mconcat [objs, fps, windowDraw])
@@ -63,13 +64,13 @@ toWorldCoord (centerX, centerY) (Position x y) =
     zeroX = round $ centerX - 300
     zeroY = round $ centerY - 300
 
-fpsWindow :: Signal Double -> Window ()
+fpsWindow :: Signal Double -> SimpleWindow
 fpsWindow frameRate WindowInput{..} = do
   counter <- accumD 0 $ eachSample $ return (+1)
   let fps = makeFpsD <$> frameRate
   background <- discreteToSignal $ bg <$> wiFocused <*> wiMetrics
   let draw = background `mappend` fps
-  return (output draw counter, ())
+  return $ output draw counter
   where
     output draw counter = (draw, newMetrics 0, newMetrics . (*100) . sin . (/30) <$> counter)
     newMetrics :: Double -> WindowMetrics
@@ -123,6 +124,15 @@ clickEvent = filterNothingE . fmap pickupClick
   where
     pickupClick (MouseButton LeftButton, GL.Down, _, pos) = Just pos
     pickupClick _ = Nothing
+
+type SimpleWindow = WindowInput -> SignalGenA WindowOutput
+
+simpleWindow :: WindowSystem -> SimpleWindow -> SignalGenA ()
+simpleWindow sys simple = void $ closableWindow sys w
+  where
+    w input = do
+      draw <- simple input
+      return (draw, ((), wiCloseReq input))
 
 --------------------------------------------------------------------------------
 -- framerate calculation

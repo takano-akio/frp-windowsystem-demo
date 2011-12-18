@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, MultiParamTypeClasses #-}
+{-# LANGUAGE DeriveFunctor, MultiParamTypeClasses, DeriveDataTypeable #-}
 
 {-# OPTIONS_GHC -Wall #-}
 -- | Event/discrete layer constructed on top of Elera.
@@ -10,11 +10,12 @@ import Control.Monad.Fix
 import Data.List (foldl')
 import Data.Monoid
 import Data.Maybe
+import Data.Typeable
 
 import ElereaExts.MonadSignalGen
 
 newtype Event a = Event (Signal [a])
-  deriving (Functor)
+  deriving (Functor, Typeable)
 newtype Discrete a = Discrete (Signal (Bool, a))
   -- The first component indicates if the value may be new.
   -- If it is False, the consumer should avoid evaluating the
@@ -22,7 +23,7 @@ newtype Discrete a = Discrete (Signal (Bool, a))
   -- FIXME: This trick alone cannot remove all redundant recomputations.
   -- Consider the case where a Discrete is
   -- read every iteration in a fresh SignalGen run.
-  deriving (Functor)
+  deriving (Functor, Typeable)
 -- type Behavior a = Signal a
 
 instance Monoid (Event a) where

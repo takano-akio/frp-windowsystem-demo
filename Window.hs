@@ -18,13 +18,15 @@ import Data.List
 import Data.Dynamic
 import Data.Maybe
 import Data.Unique
+import qualified Graphics.UI.GLUT as GL
 
 type Window a = WindowInput -> SignalGenA (WindowOutput, a)
 data WindowInput = WindowInput
   { wiKey :: (Event KeyEvent)
-  , wiKeyState :: ( Discrete KeyStateMap)
+  , wiKeyState :: (Discrete KeyStateMap)
   , wiMetrics :: (Discrete WindowMetrics)
   , wiFocused :: (Discrete Bool)
+  , wiCloseReq :: Event ()
   }
 type WindowOutput = (Signal Draw, WindowMetrics, Discrete WindowMetrics)
 type WindowMetrics = (Position, Size)
@@ -46,12 +48,32 @@ instance Ord WindowKey where
     Just k -> compare k k1
     Nothing -> compare u0 u1
 
-window :: (Typeable a) => WindowSystem -> Window a -> SignalGenA (Signal a)
-window sys w = do
-  out <- manyWindows sys =<< singletonCollection () w
-  extractOnlyElement out
-  where
-    extractOnlyElement col = memo $ (M.!()) <$> collectionToMap col
+window :: (Typeable a) => WindowSystem -> Window a -> SignalGenA (Signal (Maybe a))
+window sys w = generalWindow sys w mempty
+
+closableWindow
+  :: (Typeable a)
+  => WindowSystem
+  -> Window (a, Event ())
+  -> SignalGenA (Signal (Maybe a))
+closableWindow sys w = do
+  rec
+    tupleSig <- generalWindow sys w close
+    let close = joinEventSignal $ fromMaybe mempty . fmap snd <$> tupleSig
+  return $ fmap fst <$> tupleSig
+
+generalWindow
+  :: (Typeable a)
+  => WindowSystem
+  -> Window a
+  -> Event ()
+  -> SignalGenA (Signal (Maybe a))
+generalWindow sys w close = do
+  add <- onCreation $ Add () w
+  let remove = const (Remove ()) <$> close
+  col <- deltaEventToCollection $ mappend add remove
+  out <- manyWindows sys col
+  memo $ M.lookup () <$> collectionToMap out
 
 manyWindows :: (Typeable k, Ord k, Typeable a) =>
   WindowSystem -> Collection k (Window a) -> SignalGenA (Collection k a)
@@ -147,19 +169,30 @@ handleWindowCreationDeletion prevFocus creationDeletion (keyEvt, keyState, _) = 
   where
     trans (Add key win) = do
       rec
-        focused <- minimizeChanges $ signalToDiscrete $ (Just key==) <$> prevFocus
+        focused <- memo $ (Just key==) <$> prevFocus
+        focusedD <- minimizeChanges $ signalToDiscrete focused
+        closeReq <- memoE $ closeRequest keyEvt focused
         let
           wInput = WindowInput
             { wiKey = keyEvt
             , wiKeyState = keyState
             , wiMetrics = metricsD
-            , wiFocused = focused
+            , wiFocused = focusedD
+            , wiCloseReq = closeReq
             }
         ((wDraw, initialMet, nextMet), val) <- win wInput
         metricsD <- delayD initialMet nextMet
         metrics <- discreteToSignal metricsD
       return $ Add key ((,) <$> wDraw <*> metrics, val)
     trans (Remove key) = return $ Remove key
+
+closeRequest :: Event KeyEvent -> Signal Bool -> Event ()
+closeRequest keyEvt focused =
+  filterNothingE $ mk <$> focused <@> keyEvt
+  where
+    mk focus (GL.MouseButton GL.LeftButton, GL.Down, mods, _)
+      | focus && GL.alt mods == GL.Down = Just ()
+    mk _ _ = Nothing
 
 mapWindow :: (a -> b) -> Window a -> Window b
 mapWindow f w = \input -> do

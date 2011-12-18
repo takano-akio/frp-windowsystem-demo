@@ -18,7 +18,6 @@ import Data.Monoid
 import qualified Data.Map as M
 import Data.UnixTime
 import Graphics.UI.GLUT(GLdouble, Vector2(..), Color4(..))
-import Graphics.UI.GLUT(Key(..), MouseButton(..))
 import qualified Graphics.UI.GLUT as GL
 import Text.Printf
 

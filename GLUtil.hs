@@ -2,6 +2,8 @@
 module GLUtil
   ( module GLUtil
   , Position(..)
+  , Key(..)
+  , GL.MouseButton(..)
   , GL.Size(..)
   ) where
 

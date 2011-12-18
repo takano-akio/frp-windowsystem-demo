@@ -179,9 +179,10 @@ handleWindowCreationDeletion prevFocus creationDeletion (keyEvt, keyState, _) = 
         focused <- memo $ (Just key==) <$> prevFocus
         focusedD <- minimizeChanges $ signalToDiscrete focused
         closeReq <- memoE $ closeRequest keyEvt focused
+        translatedKeyEvt <- memoE $ translateKeyEvent metrics focused keyEvt
         let
           wInput = WindowInput
-            { wiKey = keyEvt
+            { wiKey = translatedKeyEvt
             , wiKeyState = keyState
             , wiMetrics = metricsD
             , wiFocused = focusedD
@@ -197,9 +198,26 @@ closeRequest :: Event KeyEvent -> Signal Bool -> Event ()
 closeRequest keyEvt focused =
   filterNothingE $ mk <$> focused <@> keyEvt
   where
-    mk focus (GL.MouseButton GL.LeftButton, GL.Down, mods, _)
-      | focus && GL.alt mods == GL.Down = Just ()
+    mk True (MouseButton LeftButton, GL.Down, GL.Modifiers{ GL.alt = GL.Down }, _)
+      = Just ()
     mk _ _ = Nothing
+
+translateKeyEvent
+  :: Signal WindowMetrics
+  -> Signal Bool
+  -> Event KeyEvent
+  -> Event KeyEvent
+translateKeyEvent metrics focused keyEvt =
+  filterNothingE $ mk <$> metrics <*> focused <@> keyEvt
+  where
+    mk (windowPos, _) True (key, keyState, mods, cursorPos) =
+      Just (key, keyState, mods, pos)
+      where !pos = translatePosition windowPos cursorPos
+    mk _ False _ = Nothing
+
+translatePosition :: Position -> Position -> Position
+translatePosition (Position windowX windowY) (Position x y) =
+  Position (x - windowX) (y - windowY)
 
 mapWindow :: (a -> b) -> Window a -> Window b
 mapWindow f w = \input -> do

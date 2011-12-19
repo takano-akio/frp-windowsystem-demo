@@ -11,9 +11,9 @@ module ElereaExts.MonadSignalGen
   , until
   , stateful
   , transfer
+  , transfer2
+  , transfer3
   -- not implemented yet
-  --, transfer2
-  --, transfer3
   --, transfer4
   , execute
   , effectful
@@ -65,6 +65,14 @@ stateful a b = liftSignalGen $ E.stateful a b
 
 transfer :: (MonadSignalGen m) => a -> (t -> a -> a) -> Signal t -> m (Signal a)
 transfer a b c = liftSignalGen $ E.transfer a b c
+
+transfer2 :: (MonadSignalGen m) =>
+  a -> (t1 -> t2 -> a -> a) -> Signal t1 -> Signal t2 -> m (Signal a)
+transfer2 a b c d = liftSignalGen $ E.transfer2 a b c d
+
+transfer3 :: (MonadSignalGen m) =>
+  a -> (t1 -> t2 -> t3 -> a -> a) -> Signal t1 -> Signal t2 -> Signal t3 -> m (Signal a)
+transfer3 a b c d e = liftSignalGen $ E.transfer3 a b c d e
 
 execute :: (MonadSignalGen m) => IO a -> m a
 execute a = liftSignalGen $ E.execute a

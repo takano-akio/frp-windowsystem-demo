@@ -13,7 +13,10 @@ instance (Monad m) => Monoid (Task m) where
   Task x `mappend` Task y = Task $ x >> y
 
 traceF :: (Show a, Functor f) => String -> f a -> f a
-traceF loc = fmap (\val -> trace (loc ++ ": " ++ show val) val)
+traceF loc = traceT loc id
+
+traceT :: (Show a, Functor f) => String -> (b -> a) -> f b -> f b
+traceT loc t = fmap (\val -> trace (loc ++ ": " ++ show (t val)) val)
 
 -- orphan, but so useful
 instance (Monoid a) => Monoid (Signal a) where

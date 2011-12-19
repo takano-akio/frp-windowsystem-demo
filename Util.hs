@@ -18,6 +18,9 @@ traceF loc = traceT loc id
 traceT :: (Show a, Functor f) => String -> (b -> a) -> f b -> f b
 traceT loc t = fmap (\val -> trace (loc ++ ": " ++ show (t val)) val)
 
+ifelse :: Bool -> a -> a -> a
+ifelse b x y = if b then x else y
+
 -- orphan, but so useful
 instance (Monoid a) => Monoid (Signal a) where
   mempty = pure mempty

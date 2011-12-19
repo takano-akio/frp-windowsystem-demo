@@ -47,7 +47,10 @@ main keyEvt mousePos = runSignalGenA $ do
   let fps = makeFpsD <$> frameRate
 
   (windowDraw, sys) <- windowSystem globalInput
+  let windowColor = pure $ Color4 0.2 0.6 0.7 1
+  _ <- simpleWindow sys (Size 200 100) $ simpleButton windowColor "foo"
   _ <- simpleWindow sys (Size 100 100) $ fpsWindow frameRate
+  _ <- simpleWindow sys (Size 200 200) $ simpleButton windowColor "literally"
 
   return $! mconcat
     [ (drawTask <$> mconcat [objs, fps, windowDraw])
@@ -118,6 +121,21 @@ windowBg (_, Size w h) =
   shift 0.5 0.5 $
   scale 0.5 $
   square
+
+simpleButton :: Signal (Color4 GLdouble) -> String -> SimpleWindow
+simpleButton unfocusedBgColor label WindowInput{..} = do
+  d <- draw <$> discreteToSignal wiFocused <*> discreteToSignal wiMetrics
+  click <- memoE $ const () <$> clickEvent wiKey
+  return (d, click)
+  where
+    draw focused metrics = background `mappend` foreground
+      where
+        background = color <$> bgColor <*> (windowBg <$> metrics)
+        foreground = pure $ scale 0.2 $ color black $ stringD label
+        bgColor = ifelse <$> focused <*> pure lighten <*> pure id <*> unfocusedBgColor
+    lighten (Color4 r g b a) = Color4 (f r) (f g) (f b) a
+      where f x = 1 - 0.7 * (1 - x)
+    black = Color4 0 0 0 1
 
 type SimpleWindow = WindowInput -> SignalGenA (Signal Draw, Event ())
 

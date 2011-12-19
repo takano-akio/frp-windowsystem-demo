@@ -46,9 +46,11 @@ instance Eq WindowKey where
   x == y = compare x y == EQ
 
 instance Ord WindowKey where
-  compare (WindowKey u0 k0) (WindowKey u1 k1) = case cast k0 of
-    Just k -> compare k k1
-    Nothing -> compare u0 u1
+  compare (WindowKey u0 k0) (WindowKey u1 k1) = compare u0 u1 `mappend` keyOrder
+    where
+      keyOrder = case cast k0 of
+        Just k -> compare k k1
+        Nothing -> EQ
 
 -- | Create an instance of the window system.
 windowSystem :: GlobalInput -> SignalGenA (Signal Draw, WindowSystem)

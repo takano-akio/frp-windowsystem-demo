@@ -21,6 +21,9 @@ traceT loc t = fmap (\val -> trace (loc ++ ": " ++ show (t val)) val)
 ifelse :: Bool -> a -> a -> a
 ifelse b x y = if b then x else y
 
+fi :: (Integral a, Num b) => a -> b
+fi = fromIntegral
+
 -- orphan, but so useful
 instance (Monoid a) => Monoid (Signal a) where
   mempty = pure mempty

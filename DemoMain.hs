@@ -196,30 +196,3 @@ keyStateFromKeyEvent keyEvt = do
   memoD $ flip (M.findWithDefault False) <$> m
   where
     updMap (key, ks, _, _) m = (M.insert key $! ks==GL.Down) m
-
--- | Component-wise arithmetic of 2d vectors
-instance (Num a) => Num (Vector2 a) where
-  (+) = liftA2 (+)
-  (-) = liftA2 (-)
-  (*) = liftA2 (*)
-  negate = liftA negate
-  abs = liftA abs
-  signum = liftA signum
-  fromInteger = toVec . fromInteger
-
-instance (Fractional a) => Fractional (Vector2 a) where
-  (/) = liftA2 (/)
-  recip = liftA recip
-  fromRational = toVec . fromRational
-
-vectorLen :: (RealFloat a) => Vector2 a -> a
-vectorLen (Vector2 x y) = sqrt (x*x + y*y)
-
-toVec :: a -> Vector2 a
-toVec x = Vector2 x x
-
-normalizeVector :: (RealFloat a) => Vector2 a -> Vector2 a
-normalizeVector vec
-  | len == 0 = vec
-  | otherwise = vec / toVec len
-  where len = vectorLen vec

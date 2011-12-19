@@ -141,7 +141,7 @@ handleWindowDrag
   :: (Eq k)
   => Signal (Maybe k)
   -> GlobalInput
-  -> SignalGenA (Event (k, (Int, Int)))
+  -> SignalGenA (Event (k, Vector2 Int))
 handleWindowDrag focus (keyEvt, _, mousePos) = do
   dragInstance <- stepper Nothing $ filterNothingE
     $ instanceChange <$> focus <@> keyEvt
@@ -159,10 +159,7 @@ handleWindowDrag focus (keyEvt, _, mousePos) = do
       | curWindow == prevWindow = Just (curWindow, relativePos prevPos curPos)
     movement _ _ = Nothing
 
-    relativePos (Position prevX prevY) (Position curX curY) = (x, y)
-      where
-        !x = fromIntegral $ curX - prevX
-        !y = fromIntegral $ curY - prevY
+    relativePos prevPos curPos = pos2vec curPos - pos2vec prevPos
 
 findFocused
   :: Signal Position
@@ -194,7 +191,7 @@ layout (winDraw, (Position x y, _size)) =
 handleWindowCreationDeletion
   :: (Eq k)
   => Signal (Maybe k)
-  -> Event (k, (Int, Int))
+  -> Event (k, Vector2 Int)
   -> Event (CollectionDelta k (Window a))
   -> GlobalInput
   -> SignalGenA (Event (CollectionDelta k (Signal (Draw, WindowMetrics), a)))
@@ -217,7 +214,7 @@ createWindow
   => k
   -> Window a
   -> Signal (Maybe k)
-  -> Event (k, (Int, Int))
+  -> Event (k, Vector2 Int)
   -> GlobalInput
   -> SignalGenA (Signal (Draw, WindowMetrics), a)
 createWindow key win prevFocus moveRequest (keyEvt, keyState, _) = do
@@ -245,20 +242,15 @@ createWindow key win prevFocus moveRequest (keyEvt, keyState, _) = do
 requestedMetrics
   :: (Eq k)
   => k
-  -> Event (k, (Int, Int))
+  -> Event (k, Vector2 Int)
   -> Discrete WindowMetrics
   -> Discrete WindowMetrics
 requestedMetrics thisWindow moveRequest prevMetrics =
   applyMove <$> totalRequest <@> prevMetrics
   where
-    applyMove (x, y) (Position px py, size) = (position, size)
-      where !position = Position (px+fromIntegral x) (py+fromIntegral y)
-    totalRequest = sumRequest <$> eventToSignal reqsToThis
-    sumRequest = foldl' compose (0,0)
-    compose (x0, y0) (x1, y1) = (x, y)
-      where
-        !x = x0 + x1
-        !y = y0 + y1
+    applyMove vec (pos, size) = (position, size)
+      where !position = vec2pos $ vec + pos2vec pos
+    totalRequest = sum <$> eventToSignal reqsToThis
     reqsToThis = mapMaybeE toThis moveRequest
     toThis (destination, move)
       | destination == thisWindow = Just move

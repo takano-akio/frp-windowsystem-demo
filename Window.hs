@@ -239,7 +239,8 @@ createWindow key win prevFocus moveRequest (keyEvt, keyState, _) = do
     ((wDraw, initialMet, nextMet), val) <- win wInput
     metricsD <- delayD initialMet nextMet
     metrics <- discreteToSignal metricsD
-  return ((,) <$> wDraw <*> metrics, val)
+    nextMetS <- discreteToSignal nextMet
+  return ((,) <$> wDraw <*> nextMetS, val)
 
 requestedMetrics
   :: (Eq k)

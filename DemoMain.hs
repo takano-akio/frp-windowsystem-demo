@@ -139,7 +139,7 @@ simpleButton unfocusedBgColor label WindowInput{..} = do
 
 type SimpleWindow = WindowInput -> SignalGenA (Signal Draw, Event ())
 
--- | Creates a simple, random-positioned, user-closable and non-moving window
+-- | Creates a simple, random-positioned, user-closable and user-movable window
 -- that returns a single unit event.
 simpleWindow :: WindowSystem -> Size -> SimpleWindow -> SignalGenA (Event ())
 simpleWindow sys size simple = do
@@ -150,7 +150,7 @@ simpleWindow sys size simple = do
       pos <- execute $ randomWindowPos size
       let metrics = (pos, size)
       (draw, evt) <- simple input
-      let output = (draw, metrics, pure metrics)
+      let output = (draw, metrics, wiMetricsReq input)
       return (output, (evt, wiCloseReq input))
 
 randomWindowPos :: Size -> IO Position

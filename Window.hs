@@ -26,6 +26,7 @@ data WindowInput = WindowInput
   { wiKey :: (Event KeyEvent)
   , wiKeyState :: (Discrete KeyStateMap)
   , wiMetrics :: (Discrete WindowMetrics)
+  , wiMetricsReq :: Discrete WindowMetrics
   , wiFocused :: (Discrete Bool)
   , wiCloseReq :: Event ()
   }
@@ -126,14 +127,42 @@ runWindows
 runWindows windowSpecs globalInput@(_, _, mousePos) = do
   rec
     prevFocus <- delay Nothing focus
+    drag <- handleWindowDrag prevFocus globalInput
     windows <- deltaEventToCollection =<<
-      handleWindowCreationDeletion prevFocus
+      handleWindowCreationDeletion prevFocus drag
         (collectionChanges windowSpecs) globalInput
     focus <- findFocused mousePos windows
   let
     draw = join $
       mconcat . map (fmap layout . fst) . M.elems <$> collectionToMap windows
   return (draw, fmap snd windows)
+
+handleWindowDrag
+  :: (Eq k)
+  => Signal (Maybe k)
+  -> GlobalInput
+  -> SignalGenA (Event (k, (Int, Int)))
+handleWindowDrag focus (keyEvt, _, mousePos) = do
+  dragInstance <- stepper Nothing $ filterNothingE
+    $ instanceChange <$> focus <@> keyEvt
+  dragState <- memo $ fmap <$> ((,) <$> mousePos) <*> dragInstance
+  prevState <- delay Nothing dragState
+  memoE $ filterNothingE $ eachSample $ movement <$> dragState <*> prevState
+  where
+    instanceChange (Just wKey)
+      (MouseButton LeftButton, GL.Down, GL.Modifiers{ GL.shift = GL.Down }, _)
+      = Just $ Just wKey
+    instanceChange _ (MouseButton LeftButton, GL.Up, _, _) = Just Nothing
+    instanceChange _ _ = Nothing
+
+    movement (Just (curPos, curWindow)) (Just (prevPos, prevWindow))
+      | curWindow == prevWindow = Just (curWindow, relativePos prevPos curPos)
+    movement _ _ = Nothing
+
+    relativePos (Position prevX prevY) (Position curX curY) = (x, y)
+      where
+        !x = fromIntegral $ curX - prevX
+        !y = fromIntegral $ curY - prevY
 
 findFocused
   :: Signal Position
@@ -165,10 +194,12 @@ layout (winDraw, (Position x y, _size)) =
 handleWindowCreationDeletion
   :: (Eq k)
   => Signal (Maybe k)
+  -> Event (k, (Int, Int))
   -> Event (CollectionDelta k (Window a))
   -> GlobalInput
   -> SignalGenA (Event (CollectionDelta k (Signal (Draw, WindowMetrics), a)))
-handleWindowCreationDeletion prevFocus creationDeletion (keyEvt, keyState, _) = do
+handleWindowCreationDeletion prevFocus moveRequest
+    creationDeletion globalInput = do
   -- I have to use a delay here, otherwise I'll get a circular dependency.
   -- This means newly created windows do not appear until the next iteration.
   -- This is somewhat unsatisfactory, especially when your FRP program is
@@ -177,24 +208,60 @@ handleWindowCreationDeletion prevFocus creationDeletion (keyEvt, keyState, _) = 
   generatorE $ trans <$> ev
   where
     trans (Add key win) = do
-      rec
-        focused <- memo $ (Just key==) <$> prevFocus
-        focusedD <- minimizeChanges $ signalToDiscrete focused
-        closeReq <- memoE $ closeRequest keyEvt focused
-        translatedKeyEvt <- memoE $ translateKeyEvent metrics focused keyEvt
-        let
-          wInput = WindowInput
-            { wiKey = translatedKeyEvt
-            , wiKeyState = keyState
-            , wiMetrics = metricsD
-            , wiFocused = focusedD
-            , wiCloseReq = closeReq
-            }
-        ((wDraw, initialMet, nextMet), val) <- win wInput
-        metricsD <- delayD initialMet nextMet
-        metrics <- discreteToSignal metricsD
-      return $ Add key ((,) <$> wDraw <*> metrics, val)
+      entry <- createWindow key win prevFocus moveRequest globalInput
+      return $ Add key entry
     trans (Remove key) = return $ Remove key
+
+createWindow
+  :: (Eq k)
+  => k
+  -> Window a
+  -> Signal (Maybe k)
+  -> Event (k, (Int, Int))
+  -> GlobalInput
+  -> SignalGenA (Signal (Draw, WindowMetrics), a)
+createWindow key win prevFocus moveRequest (keyEvt, keyState, _) = do
+  rec
+    focused <- memo $ (Just key==) <$> prevFocus
+    focusedD <- minimizeChanges $ signalToDiscrete focused
+    closeReq <- memoE $ closeRequest keyEvt focused
+    translatedKeyEvt <- memoE $ translateKeyEvent metrics focused keyEvt
+    reqMetrics <- memoD $ requestedMetrics key moveRequest metricsD
+    let
+      wInput = WindowInput
+        { wiKey = translatedKeyEvt
+        , wiKeyState = keyState
+        , wiMetrics = metricsD
+        , wiMetricsReq = reqMetrics
+        , wiFocused = focusedD
+        , wiCloseReq = closeReq
+        }
+    ((wDraw, initialMet, nextMet), val) <- win wInput
+    metricsD <- delayD initialMet nextMet
+    metrics <- discreteToSignal metricsD
+  return ((,) <$> wDraw <*> metrics, val)
+
+requestedMetrics
+  :: (Eq k)
+  => k
+  -> Event (k, (Int, Int))
+  -> Discrete WindowMetrics
+  -> Discrete WindowMetrics
+requestedMetrics thisWindow moveRequest prevMetrics =
+  applyMove <$> totalRequest <@> prevMetrics
+  where
+    applyMove (x, y) (Position px py, size) = (position, size)
+      where !position = Position (px+fromIntegral x) (py+fromIntegral y)
+    totalRequest = sumRequest <$> eventToSignal reqsToThis
+    sumRequest = foldl' compose (0,0)
+    compose (x0, y0) (x1, y1) = (x, y)
+      where
+        !x = x0 + x1
+        !y = y0 + y1
+    reqsToThis = mapMaybeE toThis moveRequest
+    toThis (destination, move)
+      | destination == thisWindow = Just move
+      | otherwise = Nothing
 
 closeRequest :: Event KeyEvent -> Signal Bool -> Event ()
 closeRequest keyEvt focused =

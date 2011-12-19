@@ -41,6 +41,9 @@ class (Functor f, Functor g) => Apply f g where
 instance Apply Signal Event where
   (<@>) = apply
 
+instance Apply Signal Discrete where
+  x <@> y = signalToDiscrete x <*> y
+
 -- It's difficult to implement this without causing needless recalculation:
 --instance Apply Discrete Event where
 

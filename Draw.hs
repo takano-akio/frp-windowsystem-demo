@@ -74,11 +74,13 @@ toSeq (MultiD ds) = ds
 toSeq d = Q.singleton d
 
 runDraw :: Draw -> IO ()
-runDraw (PrimD d) = d
-runDraw (TransD ts body) = unsafePreservingMatrix $ do
-  sequence_ ts
-  runDraw body
-runDraw (MultiD ds) = F.traverse_ runDraw ds
+runDraw = draw . color (Color4 0.8 0.2 0.8 1)
+  where
+    draw (PrimD d) = d
+    draw (TransD ts body) = unsafePreservingMatrix $ do
+      sequence_ ts
+      draw body
+    draw (MultiD ds) = F.traverse_ draw ds
 
 drawTask :: Draw -> Task IO
 drawTask = Task . runDraw

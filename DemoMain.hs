@@ -12,13 +12,13 @@ import ElereaExts.Event
 import ElereaExts.MonadSignalGen
 
 import Control.Applicative
-import Control.Monad
 import Data.Maybe
 import Data.Monoid
 import qualified Data.Map as M
 import Data.UnixTime
 import Graphics.UI.GLUT(GLdouble, Vector2(..), Color4(..))
 import qualified Graphics.UI.GLUT as GL
+import System.Random
 import Text.Printf
 
 main :: Event KeyEvent -> Signal Position -> SignalGen (Signal (Task IO))
@@ -47,7 +47,7 @@ main keyEvt mousePos = runSignalGenA $ do
   let fps = makeFpsD <$> frameRate
 
   (windowDraw, sys) <- windowSystem globalInput
-  simpleWindow sys $ fpsWindow frameRate
+  _ <- simpleWindow sys (Size 100 100) $ fpsWindow frameRate
 
   return $! mconcat
     [ (drawTask <$> mconcat [objs, fps, windowDraw])
@@ -63,25 +63,13 @@ toWorldCoord (centerX, centerY) (Position x y) =
 
 fpsWindow :: Signal Double -> SimpleWindow
 fpsWindow frameRate WindowInput{..} = do
-  counter <- accumD 0 $ eachSample $ return (+1)
   let fps = makeFpsD <$> frameRate
   background <- discreteToSignal $ bg <$> wiFocused <*> wiMetrics
   let draw = background `mappend` fps
-  return $ output draw counter
+  return (draw, mempty)
   where
-    output draw counter = (draw, newMetrics 0, newMetrics . (*100) . sin . (/30) <$> counter)
-    newMetrics :: Double -> WindowMetrics
-    newMetrics n = (Position (240+round n) (200+ round n), Size 100 100)
-
     bg False = color (Color4 1 0.7 0.4 1) . windowBg
     bg True = color (Color4 1 0.8 0.3 1) . windowBg
-
-windowBg :: WindowMetrics -> Draw
-windowBg (_, Size w h) =
-  scaleXY (fromIntegral w) (fromIntegral h) $
-  shift 0.5 0.5 $
-  scale 0.5 $
-  square
 
 data MoveState = MoveState !Bool !Double !Double
 
@@ -119,17 +107,41 @@ followObj click = do
 clickEvent :: Event KeyEvent -> Event Position
 clickEvent = filterNothingE . fmap pickupClick
   where
-    pickupClick (MouseButton LeftButton, GL.Down, _, pos) = Just pos
+    pickupClick (MouseButton LeftButton, GL.Down, mods, pos)
+      | mods == newtral = Just pos
     pickupClick _ = Nothing
+    newtral = GL.Modifiers GL.Up GL.Up GL.Up
 
-type SimpleWindow = WindowInput -> SignalGenA WindowOutput
+windowBg :: WindowMetrics -> Draw
+windowBg (_, Size w h) =
+  scaleXY (fromIntegral w) (fromIntegral h) $
+  shift 0.5 0.5 $
+  scale 0.5 $
+  square
 
-simpleWindow :: WindowSystem -> SimpleWindow -> SignalGenA ()
-simpleWindow sys simple = void $ closableWindow sys w
+type SimpleWindow = WindowInput -> SignalGenA (Signal Draw, Event ())
+
+-- | Creates a simple, random-positioned, user-closable and non-moving window
+-- that returns a single unit event.
+simpleWindow :: WindowSystem -> Size -> SimpleWindow -> SignalGenA (Event ())
+simpleWindow sys size simple = do
+  sig <- closableWindow sys w
+  memoE $ joinEventSignal $ fromMaybe mempty <$> sig
   where
     w input = do
-      draw <- simple input
-      return (draw, ((), wiCloseReq input))
+      pos <- execute $ randomWindowPos size
+      let metrics = (pos, size)
+      (draw, evt) <- simple input
+      let output = (draw, metrics, pure metrics)
+      return (output, (evt, wiCloseReq input))
+
+randomWindowPos :: Size -> IO Position
+randomWindowPos (Size w h) =
+  Position <$> rnd (maxX - w) <*> rnd (maxY - h)
+  where
+    rnd n = fromIntegral <$> randomRIO (0::Int, fromIntegral n - 1)
+    maxX = 640
+    maxY = 480
 
 --------------------------------------------------------------------------------
 -- framerate calculation

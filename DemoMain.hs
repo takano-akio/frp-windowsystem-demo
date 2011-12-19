@@ -16,7 +16,7 @@ import Data.Maybe
 import Data.Monoid
 import qualified Data.Map as M
 import Data.UnixTime
-import Graphics.UI.GLUT(GLdouble, Vector2(..), Color4(..))
+import Graphics.UI.GLUT(GLdouble, Color4(..))
 import qualified Graphics.UI.GLUT as GL
 import System.Random
 import Text.Printf
@@ -47,7 +47,8 @@ main keyEvt mousePos = runSignalGenA $ do
   let fps = makeFpsD <$> frameRate
 
   (windowDraw, sys) <- windowSystem globalInput
-  let windowColor = pure $ Color4 0.2 0.6 0.7 1
+  rec
+    windowColor <- colorToggleButton sys windowColor windowColorList
   _ <- simpleWindow sys (Size 200 100) $ simpleButton windowColor "foo"
   _ <- simpleWindow sys (Size 100 100) $ fpsWindow frameRate
   _ <- simpleWindow sys (Size 200 200) $ simpleButton windowColor "literally"
@@ -56,6 +57,19 @@ main keyEvt mousePos = runSignalGenA $ do
     [ (drawTask <$> mconcat [objs, fps, windowDraw])
     , fmap mconcat $ eventToSignal $ Task . print <$> click
     ]
+  where
+    windowColorList = [Color4 0.2 0.6 0.7 1, Color4 0.9 0.7 0.4 1]
+
+colorToggleButton
+  :: WindowSystem
+  -> Signal (Color4 GLdouble)
+  -> [Color4 GLdouble]
+  -> SignalGenA (Signal (Color4 GLdouble))
+colorToggleButton sys windowColor list = do
+  click <- simpleWindow sys (Size 200 40) $
+    simpleButton windowColor "change color"
+  colorSig <- accumB (cycle list) (const tail <$> click)
+  return $ head <$> colorSig
 
 toWorldCoord :: (GLdouble, GLdouble) -> Position -> Position
 toWorldCoord (centerX, centerY) (Position x y) =

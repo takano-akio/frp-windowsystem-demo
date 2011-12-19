@@ -109,6 +109,9 @@ joinEventSignal sig = Event $ do
 filterNothingE :: Event (Maybe a) -> Event a
 filterNothingE (Event evt) = Event $ catMaybes <$> evt
 
+mapMaybeE :: (a -> Maybe b) -> Event a -> Event b
+mapMaybeE f evt = filterNothingE $ f <$> evt
+
 onCreation :: (MonadSignalGen m) => a -> m (Event a)
 onCreation x = Event <$> delay [x] (return [])
 

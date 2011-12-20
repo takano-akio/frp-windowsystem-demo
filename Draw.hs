@@ -13,8 +13,11 @@ module Draw
   , rotate
   , runDraw
   , drawTask
+  , textBoxSize
+  , textBox
   ) where
 
+import Control.Applicative
 import qualified Data.Sequence as Q
 import Graphics.UI.GLUT hiding (shift, color, rotate, scale)
 import qualified Graphics.UI.GLUT as GL
@@ -46,18 +49,6 @@ segment sz = PrimD $ renderPrimitive GL.Lines $ mapM_ vertex
 
 stringD :: String -> Draw
 stringD = PrimD . renderString Roman
-
-multilineString :: String -> Draw
-multilineString = mconcat . zipWith mk [0..] . reverse . lines
-  where
-    mk lineNum ln = shift 0 (lineNum*lineHeight + stringDescend) $ stringD ln
-    lineHeight = (stringMaxHeight + stringDescend) * 1.05
-
-stringMaxHeight :: GLdouble
-stringMaxHeight = 119.5
-
-stringDescend :: GLdouble
-stringDescend = 33.33
 
 color :: Color4 GLdouble -> Draw -> Draw
 color col = trans (GL.color col)
@@ -97,3 +88,38 @@ runDraw = draw . color (Color4 0.8 0.2 0.8 1)
 
 drawTask :: Draw -> Task IO
 drawTask = Task . runDraw
+
+--------------------------------------------------------------------------------------
+-- text formatting
+
+multilineString :: String -> Draw
+multilineString = mconcat . zipWith mk [0..] . reverse . lines
+  where
+    mk lineNum ln = shift 0 (lineNum*lineHeight + stringDescend) $ stringD ln
+
+textBoxSize :: GLdouble -> String -> IO Size
+textBoxSize textScale str = do
+  width <- if null ls
+    then return 0
+    else fi . maximum <$> mapM (stringWidth Roman) ls
+  print $ (width, height)
+  return $! Size (mk width) (mk height)
+  where
+    ls = lines str
+    height = fi (length ls) * lineHeight + stringDescend
+    mk val = ceiling $ textScale * (val + 2 * textBoxMargin)
+
+textBox :: String -> Draw
+textBox = shift textBoxMargin textBoxMargin . multilineString
+
+textBoxMargin :: GLdouble
+textBoxMargin = 50
+
+stringMaxHeight :: GLdouble
+stringMaxHeight = 119.5
+
+stringDescend :: GLdouble
+stringDescend = 33.33
+
+lineHeight :: GLdouble
+lineHeight = (stringMaxHeight + stringDescend) * 1.05

@@ -50,7 +50,7 @@ colorToggleButton
   -> SignalGenA (Signal (Color4 GLdouble))
 colorToggleButton sys windowColor list = do
   click <- simpleWindow sys (Size 200 40) $
-    simpleButton windowColor "change color"
+    simpleButton windowColor "Change color"
   colorSig <- accumB (cycle list) (const tail <$> click)
   return $ head <$> colorSig
 
@@ -88,7 +88,7 @@ simpleButton unfocusedBgColor label WindowInput{..} = do
     draw focused metrics = background `mappend` foreground
       where
         background = color <$> bgColor <*> (windowBg <$> metrics)
-        foreground = pure $ scale 0.2 $ color black $ stringD label
+        foreground = pure $ scale 0.2 $ color black $ multilineString label
         bgColor = ifelse <$> focused <*> pure lighten <*> pure id <*> unfocusedBgColor
     lighten (Color4 r g b a) = Color4 (f r) (f g) (f b) a
       where f x = 1 - 0.7 * (1 - x)

@@ -5,6 +5,7 @@ module Draw
   , square
   , segment
   , stringD
+  , multilineString
   , color
   , shift
   , scale
@@ -45,6 +46,18 @@ segment sz = PrimD $ renderPrimitive GL.Lines $ mapM_ vertex
 
 stringD :: String -> Draw
 stringD = PrimD . renderString Roman
+
+multilineString :: String -> Draw
+multilineString = mconcat . zipWith mk [0..] . reverse . lines
+  where
+    mk lineNum ln = shift 0 (lineNum*lineHeight + stringDescend) $ stringD ln
+    lineHeight = (stringMaxHeight + stringDescend) * 1.05
+
+stringMaxHeight :: GLdouble
+stringMaxHeight = 119.5
+
+stringDescend :: GLdouble
+stringDescend = 33.33
 
 color :: Color4 GLdouble -> Draw -> Draw
 color col = trans (GL.color col)

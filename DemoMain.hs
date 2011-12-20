@@ -27,23 +27,7 @@ main keyEvt mousePos = runSignalGenA $ do
   keyState <- keyStateFromKeyEvent keyEvt
   frameRate <- eventRate $ eachSample curTime
 
-  rec
-    let click = apply (toWorldCoord <$> prevYouLoc) $ clickEvent keyEvt
-    (you, youLoc) <- followObj click
-    prevYouLoc <- delay (0, 0) youLoc
-
   let globalInput = (keyEvt, keyState, mousePos)
-
-  let
-    check = mconcat
-      [ segment 1000
-      , shift 0 100 $ segment 1000
-      , shift 0 200 $ segment 1000
-      , rotate 90 $ segment 1000
-      , rotate 90 $ shift 0 100 $ segment 1000
-      , rotate 90 $ shift 0 200 $ segment 1000
-      ]
-  let objs = centering <$> youLoc <*> (mappend check <$> you)
   let fps = makeFpsD <$> frameRate
 
   (windowDraw, sys) <- windowSystem globalInput
@@ -54,8 +38,7 @@ main keyEvt mousePos = runSignalGenA $ do
   _ <- simpleWindow sys (Size 200 200) $ simpleButton windowColor "literally"
 
   return $! mconcat
-    [ (drawTask <$> mconcat [objs, fps, windowDraw])
-    , fmap mconcat $ eventToSignal $ Task . print <$> click
+    [ (drawTask <$> mconcat [fps, windowDraw])
     ]
   where
     windowColorList = [Color4 0.2 0.6 0.7 1, Color4 0.9 0.7 0.4 1]
@@ -71,13 +54,6 @@ colorToggleButton sys windowColor list = do
   colorSig <- accumB (cycle list) (const tail <$> click)
   return $ head <$> colorSig
 
-toWorldCoord :: (GLdouble, GLdouble) -> Position -> Position
-toWorldCoord (centerX, centerY) (Position x y) =
-  Position (zeroX + x) (zeroY + y)
-  where
-    zeroX = round $ centerX - 300
-    zeroY = round $ centerY - 300
-
 fpsWindow :: Signal Double -> SimpleWindow
 fpsWindow frameRate WindowInput{..} = do
   let fps = makeFpsD <$> frameRate
@@ -87,39 +63,6 @@ fpsWindow frameRate WindowInput{..} = do
   where
     bg False = color (Color4 1 0.7 0.4 1) . windowBg
     bg True = color (Color4 1 0.8 0.3 1) . windowBg
-
-data MoveState = MoveState !Bool !Double !Double
-
-followObj :: Event Position -> SignalGenA (Signal Draw, Signal (GLdouble, GLdouble))
-followObj click = do
-  lastClick <- stepper Nothing $ Just <$> click
-  moveState <- transfer (MoveState False 0 0) updState lastClick
-  angle <- accumB 0 $ eachSample (pure (+1.44))
-  drawSig <- memo $ mkObj <$> moveState <*> angle 
-  posSig <- memo $ mkPos <$> moveState
-  return (drawSig, posSig)
-  where
-    updState Nothing ms = ms
-    updState (Just (Position tx ty)) (MoveState _ x y)
-      | distance < 1e-4 = MoveState False x y
-      | otherwise = MoveState True x' y'
-      where
-        Vector2 x' y' = cur + delta
-        cur = Vector2 x y
-        target = Vector2 (fromIntegral tx) (fromIntegral ty)
-        delta = direction * toVec (min maxSpeed distance)
-        distance = vectorLen (cur - target)
-        direction = normalizeVector (target - cur)
-        maxSpeed = 10
-    mkObj (MoveState moving x y) angle =
-      Draw.color col $
-      Draw.shift (realToFrac x) (realToFrac y) $
-      Draw.rotate angle $
-      Draw.scale 10 $
-      square
-      where
-        col = if moving then Color4 1 0 0 1 else Color4 0.5 0.5 1 1
-    mkPos (MoveState _ x y) = (realToFrac x, realToFrac y)
 
 clickEvent :: Event KeyEvent -> Event Position
 clickEvent = filterNothingE . fmap pickupClick
@@ -200,9 +143,6 @@ currentTime :: SignalGenA (Signal UnixTime)
 currentTime = effectful getUnixTime
 
 --------------------------------------------------------------------------------
-
-centering :: (GLdouble, GLdouble) -> Draw -> Draw
-centering (x, y) = Draw.shift (300-x) (300-y)
 
 keyStateFromKeyEvent :: Event KeyEvent -> SignalGenA (Discrete KeyStateMap)
 keyStateFromKeyEvent keyEvt = do

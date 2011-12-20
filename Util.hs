@@ -24,6 +24,9 @@ ifelse b x y = if b then x else y
 fi :: (Integral a, Num b) => a -> b
 fi = fromIntegral
 
+whenJust :: (Monad m) => Maybe a -> (a -> m ()) -> m ()
+whenJust m a = maybe (return ()) a m
+
 -- orphan, but so useful
 instance (Monoid a) => Monoid (Signal a) where
   mempty = pure mempty

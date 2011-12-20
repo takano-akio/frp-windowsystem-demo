@@ -5,6 +5,7 @@ module ElereaExts.EventAggregate
   , aggregateE
   , connectE
   , sendE
+  , newVariable
   ) where
 
 import ElereaExts.Aggregate
@@ -25,3 +26,13 @@ sendE :: AggregatorE a -> a -> SignalGenA ()
 sendE ae val = do
   singleton <- onCreation val
   connectE ae singleton
+
+-- | @newVariable initial@ creates a simulated mutable variable
+-- initialized with @initial@. It returns a signal describing the
+-- value of the variable, and an aggregator through which you
+-- can send events to update the variable.
+newVariable :: a -> SignalGenA (Discrete a, AggregatorE (a -> a))
+newVariable initial = do
+  (upd, aggr) <- aggregateE
+  var <- accumD initial upd
+  return (var, aggr)

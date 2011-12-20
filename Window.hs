@@ -106,8 +106,8 @@ manyWindows :: (Typeable k, Ord k, Typeable a) =>
   WindowSystem -> Collection k (Window a) -> SignalGenA (Collection k a)
 manyWindows WS{..} windowCol = do
   uniq <- execute newUnique
+  -- FIXME: Memory leak here. A bundle never gets unregistered.
   sendE wsBundleAggr $ WindowBundle uniq windowCol
-  --return undefined
   memoCollection $ undyn <$> subcollection (choose uniq) wsWindowOut
   where
     choose myUniq (WindowKey uniq key) = do

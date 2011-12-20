@@ -12,6 +12,7 @@ import ElereaExts.Event
 import ElereaExts.MonadSignalGen
 
 import Control.Applicative
+import Control.Monad
 import Data.Maybe
 import Data.Monoid
 import qualified Data.Map as M
@@ -33,8 +34,10 @@ main keyEvt mousePos = runSignalGenA $ do
   (windowDraw, sys) <- windowSystem globalInput
   rec
     windowColor <- colorToggleButton sys windowColor windowColorList
+  execButton sys windowColor "Frame rate" $
+    void $ simpleWindow sys (Size 100 100) $ fpsWindow frameRate
+
   _ <- simpleWindow sys (Size 200 100) $ simpleButton windowColor "foo"
-  _ <- simpleWindow sys (Size 100 100) $ fpsWindow frameRate
   _ <- simpleWindow sys (Size 200 200) $ simpleButton windowColor "literally"
 
   return $! mconcat
@@ -42,6 +45,18 @@ main keyEvt mousePos = runSignalGenA $ do
     ]
   where
     windowColorList = [Color4 0.2 0.6 0.7 1, Color4 0.9 0.7 0.4 1]
+
+execButton
+  :: WindowSystem
+  -> Signal (Color4 GLdouble)
+  -> String
+  -> SignalGenA ()
+  -> SignalGenA ()
+execButton sys windowColor label action = do
+  size <- execute $ textBoxSize 0.2 label
+  click <- simpleWindow sys size $ simpleButton windowColor label
+  _ <- generatorE $ const action <$> click
+  return ()
 
 colorToggleButton
   :: WindowSystem
@@ -88,7 +103,7 @@ simpleButton unfocusedBgColor label WindowInput{..} = do
     draw focused metrics = background `mappend` foreground
       where
         background = color <$> bgColor <*> (windowBg <$> metrics)
-        foreground = pure $ scale 0.2 $ color black $ multilineString label
+        foreground = pure $ scale 0.2 $ color black $ textBox label
         bgColor = ifelse <$> focused <*> pure lighten <*> pure id <*> unfocusedBgColor
     lighten (Color4 r g b a) = Color4 (f r) (f g) (f b) a
       where f x = 1 - 0.7 * (1 - x)

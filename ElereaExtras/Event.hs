@@ -3,7 +3,7 @@
 {-# OPTIONS_GHC -Wall #-}
 -- | Event/discrete layer constructed on top of Elera.
 -- The API is largely inspired by reactive-banana.
-module ElereaExts.Event where
+module ElereaExtras.Event where
 
 import Control.Applicative
 import Control.Monad.Fix
@@ -12,7 +12,7 @@ import Data.Monoid
 import Data.Maybe
 import Data.Typeable
 
-import ElereaExts.MonadSignalGen
+import ElereaExtras.MonadSignalGen
 
 newtype Event a = Event (Signal [a])
   deriving (Functor, Typeable)

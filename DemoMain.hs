@@ -7,9 +7,9 @@ import GLUtil
 import Util
 import Window
 
-import ElereaExts.Aggregate
-import ElereaExts.Event
-import ElereaExts.MonadSignalGen
+import ElereaExtras.Aggregate
+import ElereaExtras.Event
+import ElereaExtras.MonadSignalGen
 
 import Control.Applicative
 import Control.Monad

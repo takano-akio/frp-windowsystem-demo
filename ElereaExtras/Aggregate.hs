@@ -3,7 +3,7 @@
 -- This enables you to (almost) freely mix the imperative method-invocation
 -- style and the functional reactive style.
 
-module ElereaExts.Aggregate
+module ElereaExtras.Aggregate
   ( Aggregator
   , SignalGenA
   , aggregate
@@ -11,7 +11,7 @@ module ElereaExts.Aggregate
   , runSignalGenA
   ) where
 
-import ElereaExts.MonadSignalGen
+import ElereaExtras.MonadSignalGen
 
 import Control.Applicative
 import Control.Monad

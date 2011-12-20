@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall #-}
 -- | Dynamically connected events.
-module ElereaExts.EventAggregate
+module ElereaExtras.EventAggregate
   ( AggregatorE
   , aggregateE
   , connectE
@@ -8,8 +8,8 @@ module ElereaExts.EventAggregate
   , newVariable
   ) where
 
-import ElereaExts.Aggregate
-import ElereaExts.Event
+import ElereaExtras.Aggregate
+import ElereaExtras.Event
 
 newtype AggregatorE a = AE (Aggregator [a])
 

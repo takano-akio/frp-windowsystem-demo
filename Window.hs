@@ -7,11 +7,11 @@ import Draw
 import GLUtil
 import Util
 
-import ElereaExts.Aggregate
-import ElereaExts.Collection
-import ElereaExts.Event
-import ElereaExts.EventAggregate
-import ElereaExts.MonadSignalGen
+import ElereaExtras.Aggregate
+import ElereaExtras.Collection
+import ElereaExtras.Event
+import ElereaExtras.EventAggregate
+import ElereaExtras.MonadSignalGen
 
 import Control.Applicative
 import Control.Monad.RWS

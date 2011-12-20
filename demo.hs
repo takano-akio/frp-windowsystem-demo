@@ -6,7 +6,7 @@ module Main(main, test) where
 import qualified DemoMain
 import Util
 
-import ElereaExts.Event
+import ElereaExtras.Event
 
 import Control.Applicative
 import Data.IORef

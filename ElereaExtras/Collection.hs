@@ -3,7 +3,7 @@
 
 {-# OPTIONS_GHC -Wall #-}
 -- | Collection signals
-module ElereaExts.Collection
+module ElereaExtras.Collection
   ( Collection
   , CollectionDelta(..)
   , memoCollection
@@ -21,8 +21,8 @@ import qualified Data.Map as M
 import Data.Maybe
 import qualified Data.Set as S
 
-import ElereaExts.MonadSignalGen
-import ElereaExts.Event
+import ElereaExtras.MonadSignalGen
+import ElereaExtras.Event
 
 -- | @Collection k a@ is like @Signal (M.Map k a)@, but it carries the
 -- extra information about when the map changes, i.e. some element is

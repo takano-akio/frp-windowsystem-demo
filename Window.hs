@@ -5,6 +5,7 @@ module Window where
 
 import Draw
 import GLUtil
+import Util
 
 import ElereaExts.Aggregate
 import ElereaExts.Collection
@@ -17,6 +18,7 @@ import Control.Monad.RWS
 import qualified Data.Map as M
 import Data.List
 import Data.Dynamic
+import Data.Function
 import Data.Maybe
 import Data.Unique
 import qualified Graphics.UI.GLUT as GL
@@ -125,17 +127,35 @@ runWindows
   -> GlobalInput
   -> SignalGenA (Signal Draw, Collection k a)
 runWindows windowSpecs globalInput@(_, _, mousePos) = do
+  (zMap, zMapUpdater) <- makeZMap
+  prevZMap <- delay M.empty =<< discreteToSignal zMap
   rec
     prevFocus <- delay Nothing focus
     drag <- handleWindowDrag prevFocus globalInput
     windows <- deltaEventToCollection =<<
-      handleWindowCreationDeletion prevFocus drag
+      handleWindowCreationDeletion prevFocus drag zMapUpdater
         (collectionChanges windowSpecs) globalInput
-    focus <- findFocused mousePos windows
+    sortedWindows <- memo $ sortWindows <$> prevZMap <*> collectionToMap windows
+    focus <- findFocused mousePos sortedWindows
+  _ <- generator $ whenJust <$> focus <*> pure zMapUpdater
   let
-    draw = join $
-      mconcat . map (fmap layout . fst) . M.elems <$> collectionToMap windows
+    draw = join $ mconcat . map (fmap layout . fst . snd) <$> sortedWindows
   return (draw, fmap snd windows)
+
+sortWindows :: (Ord k) => M.Map k Int -> M.Map k v -> [(k, v)]
+sortWindows zMap windows = sortBy (compare `on` zindex) $ M.toList windows
+  where
+    zindex (k, _) = M.lookup k zMap
+
+makeZMap :: (Ord k) => SignalGenA (Discrete (M.Map k Int), k -> SignalGenA ())
+makeZMap = do
+  generationNo <- accumB 0 $ eachSample $ pure (+1)
+  (zMap, aggr) <- newVariable M.empty
+  let
+    updater key = do
+      no <- snapshot generationNo
+      sendE aggr $ M.insert key no
+  return (zMap, updater)
 
 handleWindowDrag
   :: (Eq k)
@@ -163,20 +183,20 @@ handleWindowDrag focus (keyEvt, _, mousePos) = do
 
 findFocused
   :: Signal Position
-  -> Collection k (Signal (Draw, WindowMetrics), a)
+  -> Signal [(k, (Signal (d, WindowMetrics), a))]
   -> SignalGenA (Signal (Maybe k))
 findFocused mousePosition windows = 
   memo $ fmap fst <$> (finder <*> list)
   where
     list = do {-Signal-}
-      m <- collectionToMap windows
-      forM (M.toList m) $ \(key, (sig, _)) -> do
+      ws <- windows
+      forM ws $ \(key, (sig, _)) -> do
         (_, metrics) <- sig
         return (key, metrics)
     finder :: Signal ([(k, WindowMetrics)] -> Maybe (k, WindowMetrics))
     finder = do
       pos <- mousePosition
-      return $ find (insideWindow pos . snd)
+      return $ find (insideWindow pos . snd) . reverse
 
 insideWindow :: Position -> WindowMetrics -> Bool
 insideWindow (Position x y) (Position x0 y0, Size w h) =
@@ -192,10 +212,11 @@ handleWindowCreationDeletion
   :: (Eq k)
   => Signal (Maybe k)
   -> Event (k, Vector2 Int)
+  -> (k -> SignalGenA ())
   -> Event (CollectionDelta k (Window a))
   -> GlobalInput
   -> SignalGenA (Event (CollectionDelta k (Signal (Draw, WindowMetrics), a)))
-handleWindowCreationDeletion prevFocus moveRequest
+handleWindowCreationDeletion prevFocus moveRequest addToTop
     creationDeletion globalInput = do
   -- I have to use a delay here, otherwise I'll get a circular dependency.
   -- This means newly created windows do not appear until the next iteration.
@@ -205,6 +226,7 @@ handleWindowCreationDeletion prevFocus moveRequest
   generatorE $ trans <$> ev
   where
     trans (Add key win) = do
+      addToTop key
       entry <- createWindow key win prevFocus moveRequest globalInput
       return $ Add key entry
     trans (Remove key) = return $ Remove key

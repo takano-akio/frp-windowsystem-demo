@@ -11,6 +11,7 @@ import Data.List (foldl')
 import Data.Monoid
 import Data.Maybe
 import Data.Typeable
+import Debug.Trace
 
 import ElereaExtras.MonadSignalGen
 
@@ -191,3 +192,19 @@ discreteToSignal (Discrete dis) = fmap fromJust <$> transfer Nothing upd dis
 
 signalToDiscrete :: Signal a -> Discrete a
 signalToDiscrete x = Discrete $ (,) True <$> x
+
+traceSignalMaybe :: String -> (a -> Maybe String) -> Signal a -> Signal a
+traceSignalMaybe loc f sig = do
+  v <- sig
+  case f v of
+    Nothing -> pure v
+    Just str -> trace (loc ++ ": " ++ str) $ pure v
+
+traceSignalT :: (Show b) => String -> (a -> b) -> Signal a -> Signal a
+traceSignalT loc f = traceSignalMaybe loc (Just . show . f)
+
+traceEventT :: (Show b) => String -> (a -> b) -> Event a -> Event a
+traceEventT loc f (Event sig) = Event $ traceSignalMaybe loc msg sig
+  where
+    msg [] = Nothing
+    msg occs = Just $ show (map f occs)

@@ -13,6 +13,7 @@ module ElereaExtras.Collection
   , mapSignalToSignalCollection
   , deltaEventToCollection
   , singletonCollection
+  , traceCollection
   ) where
 
 import Control.Applicative
@@ -90,3 +91,11 @@ deltaEventToCollection (Event evt) = Col <$> transfer ([], M.empty) upd evt
         !m' = foldl' applyDelta m deltas
     applyDelta m (Add k a) = M.insert k a m
     applyDelta m (Remove k) = M.delete k m
+
+traceCollection :: String -> Collection k a -> Collection k a
+traceCollection loc (Col sig) = Col (traceSignalMaybe loc f sig)
+  where
+    f ([], _) = Nothing
+    f (chs, _) = Just $ unwords $ map to_s chs
+    to_s Add{} = "add"
+    to_s Remove{} = "remove"

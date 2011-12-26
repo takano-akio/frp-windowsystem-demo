@@ -36,6 +36,8 @@ main keyEvt mousePos = runSignalGenA $ do
     windowColor <- colorToggleButton sys windowColor windowColorList
   execButton sys windowColor "Frame rate" $
     void $ simpleWindow sys (Size 100 100) $ fpsWindow frameRate
+  execButton sys windowColor "Help" $
+    noticeWindow sys windowColor helpString
 
   _ <- simpleWindow sys (Size 200 100) $ simpleButton windowColor "foo"
   _ <- simpleWindow sys (Size 200 200) $ simpleButton windowColor "literally"
@@ -46,6 +48,12 @@ main keyEvt mousePos = runSignalGenA $ do
   where
     windowColorList = [Color4 0.2 0.6 0.7 1, Color4 0.9 0.7 0.4 1]
 
+helpString :: String
+helpString = unlines
+  [ "Alt-click to close a window."
+  , "Hold shift to drag a window."
+  ]
+
 execButton
   :: WindowSystem
   -> Signal Rgba
@@ -53,7 +61,7 @@ execButton
   -> SignalGenA ()
   -> SignalGenA ()
 execButton sys windowColor label action = do
-  size <- execute $ textBoxSize 0.2 label
+  size <- execute $ simpleButtonSize label
   click <- simpleWindow sys size $ simpleButton windowColor label
   _ <- generatorE $ const action <$> click
   return ()
@@ -109,6 +117,21 @@ simpleButton unfocusedBgColor label WindowInput{..} = do
       where f x = 1 - 0.7 * (1 - x)
     black = Color4 0 0 0 1
 
+simpleButtonSize :: String -> IO Size
+simpleButtonSize label = textBoxSize 0.2 label
+
+-- | An window that displays a static multiline text.
+-- Closes itself when clicked.
+noticeWindow :: WindowSystem -> Signal Rgba -> String -> SignalGenA ()
+noticeWindow sys windowColor text = void $ closableWindow sys w
+  where
+    w input = do
+      metrics <- execute $
+        randomInitialMetrics =<< simpleButtonSize text
+      (draw, clickEvt) <- simpleButton windowColor text input
+      let output = (draw, metrics, wiMetricsReq input)
+      return (output, ((), wiCloseReq input `mappend` clickEvt))
+
 type SimpleWindow = WindowInput -> SignalGenA (Signal Draw, Event ())
 
 -- | Creates a simple, random-positioned, user-closable and user-movable window
@@ -119,11 +142,15 @@ simpleWindow sys size simple = do
   memoE $ joinEventSignal $ fromMaybe mempty <$> sig
   where
     w input = do
-      pos <- execute $ randomWindowPos size
-      let metrics = (pos, size)
+      metrics <- execute $ randomInitialMetrics size
       (draw, evt) <- simple input
       let output = (draw, metrics, wiMetricsReq input)
       return (output, (evt, wiCloseReq input))
+
+randomInitialMetrics :: Size -> IO WindowMetrics
+randomInitialMetrics size = do
+  pos <- randomWindowPos size
+  return (pos, size)
 
 randomWindowPos :: Size -> IO Position
 randomWindowPos (Size w h) =

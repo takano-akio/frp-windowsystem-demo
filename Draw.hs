@@ -23,6 +23,7 @@ import Graphics.UI.GLUT hiding (shift, color, rotate, scale)
 import qualified Graphics.UI.GLUT as GL
 import qualified Data.Foldable as F
 import Data.Monoid
+import GLUtil
 import Util
 
 -- | Something to be drawn.
@@ -50,7 +51,7 @@ segment sz = PrimD $ renderPrimitive GL.Lines $ mapM_ vertex
 stringD :: String -> Draw
 stringD = PrimD . renderString Roman
 
-color :: Color4 GLdouble -> Draw -> Draw
+color :: Rgba -> Draw -> Draw
 color col = trans (GL.color col)
 
 scale :: GLdouble -> Draw -> Draw

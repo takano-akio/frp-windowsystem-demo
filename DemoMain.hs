@@ -17,7 +17,7 @@ import Data.Maybe
 import Data.Monoid
 import qualified Data.Map as M
 import Data.UnixTime
-import Graphics.UI.GLUT(GLdouble, Color4(..))
+import Graphics.UI.GLUT(Color4(..))
 import qualified Graphics.UI.GLUT as GL
 import System.Random
 import Text.Printf
@@ -48,7 +48,7 @@ main keyEvt mousePos = runSignalGenA $ do
 
 execButton
   :: WindowSystem
-  -> Signal (Color4 GLdouble)
+  -> Signal Rgba
   -> String
   -> SignalGenA ()
   -> SignalGenA ()
@@ -60,9 +60,9 @@ execButton sys windowColor label action = do
 
 colorToggleButton
   :: WindowSystem
-  -> Signal (Color4 GLdouble)
-  -> [Color4 GLdouble]
-  -> SignalGenA (Signal (Color4 GLdouble))
+  -> Signal Rgba
+  -> [Rgba]
+  -> SignalGenA (Signal Rgba)
 colorToggleButton sys windowColor list = do
   click <- simpleWindow sys (Size 200 40) $
     simpleButton windowColor "Change color"
@@ -94,7 +94,7 @@ windowBg (_, Size w h) =
   scale 0.5 $
   square
 
-simpleButton :: Signal (Color4 GLdouble) -> String -> SimpleWindow
+simpleButton :: Signal Rgba -> String -> SimpleWindow
 simpleButton unfocusedBgColor label WindowInput{..} = do
   d <- draw <$> discreteToSignal wiFocused <*> discreteToSignal wiMetrics
   click <- memoE $ const () <$> clickEvent wiKey

@@ -10,12 +10,13 @@ module GLUtil
 
 import Control.Applicative
 import qualified Graphics.UI.GLUT as GL
-import Graphics.UI.GLUT(Key(..), Position(..), Vector2(..))
+import Graphics.UI.GLUT(Key(..), Position(..), Vector2(..), GLdouble)
 
 import Util
 
 type KeyEvent = (Key, GL.KeyState, GL.Modifiers, Position)
 type KeyStateMap = Key -> Bool
+type Rgba = GL.Color4 GLdouble
 
 ------------------------------------------------------------------------------
 -- 2-dimensional Vectors

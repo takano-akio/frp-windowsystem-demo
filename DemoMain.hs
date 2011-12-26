@@ -72,10 +72,12 @@ colorToggleButton
   -> [Rgba]
   -> SignalGenA (Signal Rgba)
 colorToggleButton sys windowColor list = do
-  click <- simpleWindow sys (Size 200 40) $
-    simpleButton windowColor "Change color"
+  size <- execute $ simpleButtonSize text
+  click <- simpleWindow sys size $
+    simpleButton windowColor text
   colorSig <- accumB (cycle list) (const tail <$> click)
   return $ head <$> colorSig
+  where text = "Change color"
 
 fpsWindow :: Signal Double -> SimpleWindow
 fpsWindow frameRate WindowInput{..} = do

@@ -79,12 +79,11 @@ colorToggleButton sys windowColor list = do
 fpsWindow :: Signal Double -> SimpleWindow
 fpsWindow frameRate WindowInput{..} = do
   let fps = makeFpsD <$> frameRate
-  background <- discreteToSignal $ bg <$> wiFocused <*> wiMetrics
+  background <- discreteToSignal $ bg <$> wiMetrics
   let draw = background `mappend` fps
   return (draw, mempty)
   where
-    bg False = color (Color4 1 0.7 0.4 1) . windowBg
-    bg True = color (Color4 1 0.8 0.3 1) . windowBg
+    bg = color (Color4 1 0.7 0.4 1) . windowBg
 
 clickEvent :: Event KeyEvent -> Event Position
 clickEvent = filterNothingE . fmap pickupClick

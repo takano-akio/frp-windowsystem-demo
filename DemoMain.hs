@@ -24,21 +24,24 @@ import Text.Printf
 
 main :: Event KeyEvent -> Signal Position -> SignalGen (Signal (Task IO))
 main keyEvt mousePos = runSignalGenA $ do
-  curTime <- currentTime
   keyState <- keyStateFromKeyEvent keyEvt
-  frameRate <- eventRate $ eachSample curTime
-
   let globalInput = (keyEvt, keyState, mousePos)
 
   (windowDraw, sys) <- windowSystem globalInput
+  populateWindowSystem sys
+  return $! drawTask <$> windowDraw
+
+populateWindowSystem :: WindowSystem -> SignalGenA ()
+populateWindowSystem sys = do
+  curTime <- currentTime
+  frameRate <- eventRate $ eachSample curTime
   rec
     windowColor <- colorToggleButton sys windowColor windowColorList
   execButton sys windowColor "Frame rate" $
     void $ simpleWindow sys (Size 100 100) $ fpsWindow frameRate
   execButton sys windowColor "Help" $
     noticeWindow sys windowColor helpString
-
-  return $! drawTask <$> windowDraw
+  execButton sys windowColor "Animation" $ animationWindow sys
   where
     windowColorList = [Color4 0.2 0.6 0.7 1, Color4 0.9 0.7 0.4 1]
 
@@ -127,6 +130,21 @@ noticeWindow sys windowColor text = void $ closableWindow sys w
       (draw, clickEvt) <- simpleButton windowColor text input
       let output = (draw, metrics, wiMetricsReq input)
       return (output, ((), wiCloseReq input `mappend` clickEvt))
+
+-- | Creates an window containing a simple animation demo.
+animationWindow :: WindowSystem -> SignalGenA ()
+animationWindow sys = void $ simpleWindow sys (Size 200 200) $ \input -> do
+  objDraw <- animation
+  metrics <- discreteToSignal $ wiMetrics input
+  let bgDraw = bg <$> metrics
+  return (bgDraw `mappend` objDraw, mempty)
+  where
+    animation = do
+      r <- accumB 0 $ eachSample $ pure (+1)
+      return $ shift 100 100 <$> (rotate <$> r <*> pure obj)
+    obj = color col $ scale 20 square
+    col = Color4 0.7 0.9 0.7 1
+    bg met = color (Color4 0 0 0 1) $ windowBg met
 
 type SimpleWindow = WindowInput -> SignalGenA (Signal Draw, Event ())
 

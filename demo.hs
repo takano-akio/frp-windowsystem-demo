@@ -21,6 +21,11 @@ main = do
 
   _ <- createWindow "demo"
   initialWindowSize $= Size 640 480
+  light (Light 0) $= Enabled
+  position (Light 0) $= Vertex4 100 0 200 1
+  diffuse (Light 0) $= Color4 0.1 0.4 0.1 1
+  ambient (Light 0) $= Color4 0.1 0.4 0.1 1
+  cullFace $= Just Back
 
   (update, draw) <- setupNetwork
 
@@ -61,7 +66,7 @@ setupNetwork = do
     mkReshapeCallback size@(Size w h) = do
       viewport $= (Position 0 0, size)
       loadIdentity
-      ortho 0 (fromIntegral w) 0 (fromIntegral h) (-1) 1
+      ortho 0 (fromIntegral w) 0 (fromIntegral h) (-1000) 1000
     transKey (Size _ h) (key, ks, mods, (Position x y))
       = (key, ks, mods, Position x y')
       where !y' = fromIntegral h - y

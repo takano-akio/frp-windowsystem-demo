@@ -138,22 +138,25 @@ animationWindow sys = void $ simpleWindow sys (Size 200 200) $ \input -> do
   let bgDraw = bg <$> metrics
   return (bgDraw `mappend` objDraw, mempty)
   where
-    animation focused = do
-      r <- angle focused
-      return $ shift 100 100 <$> (rotate <$> r <*> pure obj)
-    obj = color col $ scale 30 square
-    col = Color4 0.7 0.9 0.7 1
     bg met = color (Color4 0 0 0 1) $ windowBg met
+    animation focused = do
+      r <- rotationAngle focused
+      return $ shift 100 100 . view <$> (rotate <$> r <*> pure staticObj)
+    staticObj = lighting $ rotateX 87 $ rotateY 33 $ rotate 23 $
+      matcolor col $ scale 30 cube
+    col = Color4 0.02 0.03 0.01 1
 
-    angle focused = do
-      focused' <- discreteToSignal focused
-      cnt <- accumE 0 $ eachSample $ pure (+1)
-      let targetSpd = ifelse <$> focused' <*> pure (-1) <@> (spdFun <$> cnt)
-      spd <- accumE 0 $ updateSpd <$> targetSpd
-      accumB 0 $ (+) <$> spd
+    view = shiftZ 100 . rotateX 103 . rotateY 44 . rotate 134
 
+rotationAngle :: Discrete Bool -> SignalGenA (Signal GL.GLdouble)
+rotationAngle focused = do
+  focused' <- discreteToSignal focused
+  cnt <- accumE 0 $ eachSample $ pure (+1)
+  let targetSpd = ifelse <$> focused' <*> pure (-1) <@> (spdFun <$> cnt)
+  spd <- accumE 0 $ updateSpd <$> targetSpd
+  accumB 0 $ (+) <$> spd
+  where
     spdFun x = 3 * (sin (x/40) + 3)
-
     updateSpd target prev =
       0.05 * target + 0.95 * prev
 

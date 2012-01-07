@@ -38,12 +38,12 @@ type GlobalInput = (Event KeyEvent, Discrete KeyStateMap, Signal Position)
 
 -- | An abstract type representing an instance of the window system.
 data WindowSystem = WS
-  { wsBundleAggr :: AggregatorE WindowBundle
+  { wsBundleAggr :: AggregatorE (CollectionDelta Unique WindowBundle)
   , wsWindowOut :: Collection WindowKey Dynamic
   }
 data WindowKey = forall k. (Typeable k, Ord k) => WindowKey !Unique !k
 data WindowBundle = forall k a. (Typeable k, Ord k, Typeable a) =>
-  WindowBundle !Unique (Collection k (Window a))
+  WindowBundle (Collection k (Window a))
 
 instance Eq WindowKey where
   x == y = compare x y == EQ
@@ -58,15 +58,16 @@ instance Ord WindowKey where
 -- | Create an instance of the window system.
 windowSystem :: GlobalInput -> SignalGenA (Signal Draw, WindowSystem)
 windowSystem globalInput = do
-  (bundleAdd, bundleAggr) <- aggregateE
-  bundles <- accumB [] ((:) <$> bundleAdd)
+  (bundleDelta, bundleAggr) <- aggregateE
+  bundleCol <- deltaEventToCollection bundleDelta
+  let bundles = M.toList <$> collectionToMap bundleCol
   let delta = joinEventSignal $ mconcat . map bundleChanges <$> bundles
   windows <- deltaEventToCollection delta
   (draw, out) <- runWindows windows globalInput
   let ws = WS{ wsBundleAggr = bundleAggr, wsWindowOut = out }
   return (draw, ws)
   where
-    bundleChanges (WindowBundle uniq col) = f <$> collectionChanges col
+    bundleChanges (uniq, WindowBundle col) = f <$> collectionChanges col
       where
         f (Add k w) = Add (WindowKey uniq k) (mapWindow toDyn w)
         f (Remove k) = Remove (WindowKey uniq k)
@@ -98,16 +99,23 @@ generalWindow sys w close = do
   add <- onCreation $ Add () w
   let remove = const (Remove ()) <$> close
   col <- deltaEventToCollection $ mappend add remove
-  out <- manyWindows sys col
-  memo $ M.lookup () <$> collectionToMap out
+  rec
+    let removeBundle = mapMaybeE boolToMaybe $
+          eachSample $ isNothing <$> result
+    out <- manyWindows sys col removeBundle
+    result <- memo $ M.lookup () <$> collectionToMap out
+  return result
+  where
+    boolToMaybe True = Just ()
+    boolToMaybe False = Nothing
 
 -- | Create multiple windows sharing an output type.
 manyWindows :: (Typeable k, Ord k, Typeable a) =>
-  WindowSystem -> Collection k (Window a) -> SignalGenA (Collection k a)
-manyWindows WS{..} windowCol = do
+  WindowSystem -> Collection k (Window a) -> Event () -> SignalGenA (Collection k a)
+manyWindows WS{..} windowCol destroyAll = do
   uniq <- execute newUnique
-  -- FIXME: Memory leak here. A bundle never gets unregistered.
-  sendE wsBundleAggr $ WindowBundle uniq windowCol
+  sendE wsBundleAggr $ Add uniq (WindowBundle windowCol)
+  connectE wsBundleAggr $ Remove uniq <$ destroyAll
   memoCollection $ undyn <$> subcollection (choose uniq) wsWindowOut
   where
     choose myUniq (WindowKey uniq key) = do

@@ -24,7 +24,7 @@ main = do
 
   (update, draw) <- setupNetwork
 
-  periodically 1 $ update >> draw
+  periodically 0 $ update >> draw
 
   mainLoop
 

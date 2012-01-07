@@ -23,10 +23,8 @@ main = do
   initialWindowSize $= Size 640 480
 
   (update, draw) <- setupNetwork
-  displayCallback $= draw
 
-  --idleCallback $= Just (postRedisplay Nothing)
-  periodically 15 $ update >> draw
+  periodically 1 $ update >> draw
 
   mainLoop
 

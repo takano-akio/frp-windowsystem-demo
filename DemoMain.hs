@@ -133,17 +133,29 @@ noticeWindow sys windowColor text = void $ closableWindow sys w
 -- | Creates an window containing a simple animation demo.
 animationWindow :: WindowSystem -> SignalGenA ()
 animationWindow sys = void $ simpleWindow sys (Size 200 200) $ \input -> do
-  objDraw <- animation
+  objDraw <- animation $ wiFocused input
   metrics <- discreteToSignal $ wiMetrics input
   let bgDraw = bg <$> metrics
   return (bgDraw `mappend` objDraw, mempty)
   where
-    animation = do
-      r <- accumB 0 $ eachSample $ pure (+1)
+    animation focused = do
+      r <- angle focused
       return $ shift 100 100 <$> (rotate <$> r <*> pure obj)
-    obj = color col $ scale 20 square
+    obj = color col $ scale 30 square
     col = Color4 0.7 0.9 0.7 1
     bg met = color (Color4 0 0 0 1) $ windowBg met
+
+    angle focused = do
+      focused' <- discreteToSignal focused
+      cnt <- accumE 0 $ eachSample $ pure (+1)
+      let targetSpd = ifelse <$> focused' <*> pure (-1) <@> (spdFun <$> cnt)
+      spd <- accumE 0 $ updateSpd <$> targetSpd
+      accumB 0 $ (+) <$> spd
+
+    spdFun x = 3 * (sin (x/40) + 3)
+
+    updateSpd target prev =
+      0.05 * target + 0.95 * prev
 
 type SimpleWindow = WindowInput -> SignalGenA (Signal Draw, Event ())
 

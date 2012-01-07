@@ -1,4 +1,4 @@
-{-# LANGUAGE DoRec, ExistentialQuantification, RecordWildCards #-}
+{-# LANGUAGE DoRec, ExistentialQuantification, RecordWildCards, ViewPatterns #-}
 {-# OPTIONS_GHC -Wall #-}
 -- | A very simple window system, implemented on top of GLUT.
 module Window where
@@ -139,8 +139,33 @@ runWindows windowSpecs globalInput@(_, _, mousePos) = do
     focus <- findFocused mousePos sortedWindows
   _ <- generator $ whenJust <$> focus <*> pure zMapUpdater
   let
-    draw = join $ mconcat . map (fmap layout . fst . snd) <$> sortedWindows
+    draw = join $ mconcat <$> (map <$> (drawWindow <$> focus) <*> sortedWindows)
   return (draw, fmap snd windows)
+
+drawWindow :: (Eq k) =>
+  Maybe k -> (k, (Signal (Draw, WindowMetrics), a)) -> Signal Draw
+drawWindow focus (wKey, (sig, _)) = f <$> sig
+  where
+    f (draw, metrics) = layout (draw, metrics) `mappend` border focused metrics
+    focused = focus == Just wKey
+
+layout :: (Draw, WindowMetrics) -> Draw
+layout (winDraw, (Position x y, _size)) =
+  shift (fromIntegral x) (fromIntegral y) winDraw
+
+border :: Bool -> WindowMetrics -> Draw
+border focused (Position (fi -> x) (fi -> y), Size (fi -> w) (fi -> h)) =
+  hline y x w `mappend`
+  hline (y+h) x w `mappend`
+  vline x y h `mappend`
+  vline (x+w) y h
+  where
+    hline y1 begin width = shift begin y1 $ hline0 width
+    vline x1 begin height = shift x1 begin $ rotate 90 $ hline0 height
+    hline0 len = color col $ shift (len/2) 0 $ segment $ len / 2
+    col = if focused
+      then GL.Color4 0.7 0.2 0.3 1
+      else GL.Color4 0.4 0.1 0.3 1
 
 sortWindows :: (Ord k) => M.Map k Int -> M.Map k v -> [(k, v)]
 sortWindows zMap windows = sortBy (compare `on` zindex) $ M.toList windows
@@ -203,10 +228,6 @@ insideWindow (Position x y) (Position x0 y0, Size w h) =
   inside x0 w x && inside y0 h y
   where
     inside base rng t = base <= t && t <= base + fromIntegral rng
-
-layout :: (Draw, WindowMetrics) -> Draw
-layout (winDraw, (Position x y, _size)) =
-  shift (fromIntegral x) (fromIntegral y) winDraw
 
 handleWindowCreationDeletion
   :: (Eq k)

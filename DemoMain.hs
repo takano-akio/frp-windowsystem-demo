@@ -29,7 +29,6 @@ main keyEvt mousePos = runSignalGenA $ do
   frameRate <- eventRate $ eachSample curTime
 
   let globalInput = (keyEvt, keyState, mousePos)
-  let fps = makeFpsD <$> frameRate
 
   (windowDraw, sys) <- windowSystem globalInput
   rec
@@ -39,12 +38,7 @@ main keyEvt mousePos = runSignalGenA $ do
   execButton sys windowColor "Help" $
     noticeWindow sys windowColor helpString
 
-  _ <- simpleWindow sys (Size 200 100) $ simpleButton windowColor "foo"
-  _ <- simpleWindow sys (Size 200 200) $ simpleButton windowColor "literally"
-
-  return $! mconcat
-    [ (drawTask <$> mconcat [fps, windowDraw])
-    ]
+  return $! drawTask <$> windowDraw
   where
     windowColorList = [Color4 0.2 0.6 0.7 1, Color4 0.9 0.7 0.4 1]
 

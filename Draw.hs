@@ -103,7 +103,6 @@ textBoxSize textScale str = do
   width <- if null ls
     then return 0
     else fi . maximum <$> mapM (stringWidth Roman) ls
-  print $ (width, height)
   return $! Size (mk width) (mk height)
   where
     ls = lines str

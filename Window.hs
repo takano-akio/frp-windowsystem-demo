@@ -172,7 +172,7 @@ border focused (Position (fi -> x) (fi -> y), Size (fi -> w) (fi -> h)) =
     vline x1 begin height = shift x1 begin $ rotate 90 $ hline0 height
     hline0 len = color col $ shift (len/2) 0 $ segment $ len / 2
     col = if focused
-      then GL.Color4 0.7 0.2 0.3 1
+      then GL.Color4 0.8 0.2 0.3 1
       else GL.Color4 0.4 0.1 0.3 1
 
 sortWindows :: (Ord k) => M.Map k Int -> M.Map k v -> [(k, v)]
